@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,35 +8,66 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Upload, Download, FileText, Moon, Sun } from "lucide-react"
+import Papa from "papaparse";
+import { v4 as uuidv4 } from 'uuid';
 
-const initialTransactions = [
-  { id: 1, date: "2023-06-01", description: "Grocery Store", amount: -50.00, category: "Groceries" },
-  { id: 2, date: "2023-06-02", description: "Gas Station", amount: -30.00, category: "Transportation" },
-  { id: 3, date: "2023-06-03", description: "Restaurant", amount: -25.00, category: "Dining" },
-  { id: 4, date: "2023-06-04", description: "Online Store", amount: -100.00, category: "Shopping" },
-  { id: 5, date: "2023-06-05", description: "Salary Deposit", amount: 2000.00, category: "Income" },
-]
+import { defaultTransactions, Transaction } from "@/models/transaction"
 
 const categories = ["Groceries", "Transportation", "Dining", "Shopping", "Income", "Utilities", "Entertainment", "Other"]
 
 const banks = ["RBC"]
 
-export default function BankStatementCategorizer() {
-  const [file, setFile] = useState<File | null>(null)
-  const [transactions, setTransactions] = useState(initialTransactions)
-  const [selectedBank, setSelectedBank] = useState<string | null>(null)
-  const { theme, setTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
+const fileTypes = ["text/csv"]
 
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+
+export default function BankStatementCategorizer() {
+  const [file, setFile] = useState<File | null>(null);
+  const [transactions, setTransactions] = useState([] as Transaction[]);
+  const [selectedBank, setSelectedBank] = useState<string | null>(null);
+  const [selectedFileType, setSelectedFileType] = useState<string | null>(null);
+  const { theme, setTheme } = useTheme();
+
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const uploadedFile = event.target.files?.[0]
-    if (uploadedFile) {
-      setFile(uploadedFile)
-      // In a real application, you would process the file here
+    const uploadedFile = event.target.files?.[0];
+    if(!uploadedFile){
+      alert("Error uploading file.");
+      return
+    }
+    // Check file type matches selected file type
+    if(uploadedFile.type !== selectedFileType) {
+      alert("Invalid file type")
+      return
+    }
+    setFile(uploadedFile)
+    if(uploadedFile.type === "text/csv"){
+    // Parse the file and set transactions
+      Papa.parse(uploadedFile, {
+        header: true, // Skip header row in CSV
+        skipEmptyLines: true, // Skips last empty row
+        complete: function(results){
+          console.log(results.data);
+          // Expenses should only be from chequing account
+          const creditRows = (results.data as any[]).filter((row:any) => {
+            if(row['Account Type'] != 'Chequing') {
+              return false;
+            }
+            return true;
+          });
+
+          const creditTransactions = creditRows.map((row:any) => {
+            return {
+              id: uuidv4(),
+              date: row['Transaction Date'],
+              description: row['Description 1'] + ' ' + row['Description 2'],
+              amount: parseFloat(row['CAD$']),
+              category: undefined
+            } 
+          })
+
+          setTransactions(creditTransactions);
+        }
+      })
     }
   }
 
@@ -45,12 +76,18 @@ export default function BankStatementCategorizer() {
     // In a real application, you might adjust file handling or processing based on the selected bank
   }
 
+  const handleFileTypeChange = (fileType: string) => {
+    setSelectedFileType(fileType)
+    // In a real application, you might adjust file handling or processing based on the selected file type
+  }
+
   const handleCategorize = () => {
     // In a real application, you would process the file and categorize transactions here
+    console.log(transactions);
     alert("Transactions categorized!")
   }
 
-  const handleCategoryChange = (transactionId: number, newCategory: string) => {
+  const handleCategoryChange = (transactionId: string, newCategory: string) => {
     setTransactions(transactions.map(t => 
       t.id === transactionId ? { ...t, category: newCategory } : t
     ))
@@ -82,10 +119,6 @@ export default function BankStatementCategorizer() {
     setTheme(theme === "dark" ? "light" : "dark")
   }
 
-  if (!mounted) {
-    return null
-  }
-
   return (
     <div className="container mx-auto px-4 py-8 bg-background text-foreground">
       <header className="flex justify-center items-center mb-8">
@@ -106,18 +139,32 @@ export default function BankStatementCategorizer() {
             <CardTitle>Select Your Bank</CardTitle>
           </CardHeader>
           <CardContent>
-            <Select onValueChange={handleBankChange}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose your bank" />
-              </SelectTrigger>
-              <SelectContent>
-                {banks.map((bank) => (
-                  <SelectItem key={bank} value={bank}>
-                    {bank}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col gap-6">
+              <Select onValueChange={handleBankChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose your bank" />
+                </SelectTrigger>
+                <SelectContent>
+                  {banks.map((bank) => (
+                    <SelectItem key={bank} value={bank}>
+                      {bank}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={handleFileTypeChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select supported file type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {fileTypes.map((file) => (
+                    <SelectItem key={file} value={file}>
+                      {file}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </CardContent>
         </Card>
 
@@ -127,8 +174,8 @@ export default function BankStatementCategorizer() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-lg border-border">
-              <Upload className="w-12 h-12 text-muted-foreground mb-4" />
-              <p className="text-sm text-muted-foreground mb-4 text-center">
+              <Upload className="w-12 h-12  mb-4" />
+              <p className="text-sm mb-4 text-center">
                 Drag and drop your bank statement file here, or click to select
               </p>
               <Input
@@ -142,7 +189,7 @@ export default function BankStatementCategorizer() {
             <Button 
               className="w-full mt-4" 
               onClick={handleCategorize}
-              disabled={!file || !selectedBank}
+              disabled={!file || !selectedBank || !selectedFileType}
             >
               <FileText className="mr-2 h-4 w-4" /> Categorize Transactions
             </Button>

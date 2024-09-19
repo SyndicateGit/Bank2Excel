@@ -12,8 +12,9 @@ import Papa from "papaparse";
 import { v4 as uuidv4 } from 'uuid';
 
 import { defaultTransactions, Transaction } from "@/models/transaction"
+import { categorizeTransactions } from "@/services/transactions"
 
-const categories = ["Groceries", "Transportation", "Dining", "Shopping", "Income", "Utilities", "Entertainment", "Other"]
+const categories = ["Groceries", "Transportation", "Dining", "Shopping", "Income", "Utilities", "Entertainment", "Rent", "Other"]
 
 const banks = ["RBC"]
 
@@ -22,9 +23,10 @@ const fileTypes = ["text/csv"]
 
 export default function BankStatementCategorizer() {
   const [file, setFile] = useState<File | null>(null);
-  const [transactions, setTransactions] = useState([] as Transaction[]);
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
   const [selectedFileType, setSelectedFileType] = useState<string | null>(null);
+  const [transactions, setTransactions] = useState([] as Transaction[]);
+  const [categorizedTransactions, setCategorizedTransactions] = useState([] as Transaction[]);
   const { theme, setTheme } = useTheme();
 
 
@@ -46,7 +48,6 @@ export default function BankStatementCategorizer() {
         header: true, // Skip header row in CSV
         skipEmptyLines: true, // Skips last empty row
         complete: function(results){
-          console.log(results.data);
           // Expenses should only be from chequing account
           const creditRows = (results.data as any[]).filter((row:any) => {
             if(row['Account Type'] != 'Chequing') {
@@ -73,17 +74,17 @@ export default function BankStatementCategorizer() {
 
   const handleBankChange = (bank: string) => {
     setSelectedBank(bank)
-    // In a real application, you might adjust file handling or processing based on the selected bank
   }
 
   const handleFileTypeChange = (fileType: string) => {
     setSelectedFileType(fileType)
-    // In a real application, you might adjust file handling or processing based on the selected file type
   }
 
-  const handleCategorize = () => {
-    // In a real application, you would process the file and categorize transactions here
+  const handleCategorizeTransactions = async() => {
     console.log(transactions);
+    const categorizedTransactions = await categorizeTransactions(transactions);
+    console.log(categorizedTransactions);
+    setCategorizedTransactions(transactions);
     alert("Transactions categorized!")
   }
 
@@ -94,12 +95,10 @@ export default function BankStatementCategorizer() {
   }
 
   const handleExport = () => {
-    // In a real application, you would generate an Excel file here
-    // For this example, we'll just create a CSV string
     const headers = ["Date", "Description", "Amount", "Category"]
     const csvContent = [
       headers.join(","),
-      ...transactions.map(t => `${t.date},${t.description},${t.amount},${t.category}`)
+      ...categorizedTransactions.map(t => `${t.date},${t.description},${t.amount},${t.category}`)
     ].join("\n")
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
@@ -157,9 +156,9 @@ export default function BankStatementCategorizer() {
                   <SelectValue placeholder="Select supported file type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {fileTypes.map((file) => (
-                    <SelectItem key={file} value={file}>
-                      {file}
+                  {fileTypes.map((filetype) => (
+                    <SelectItem key={filetype} value={filetype}>
+                      {filetype}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -183,12 +182,14 @@ export default function BankStatementCategorizer() {
                 accept=".pdf,.csv,.xlsx"
                 onChange={handleFileUpload}
                 className="max-w-xs"
+                disabled={!selectedBank || !selectedFileType}
               />
+              {(!selectedBank || !selectedFileType) && <p className="mt-2 text-sm text-red-600">*Please select bank and file type</p>}
               {file && <p className="mt-2 text-sm">{file.name} uploaded</p>}
             </div>
             <Button 
               className="w-full mt-4" 
-              onClick={handleCategorize}
+              onClick={handleCategorizeTransactions}
               disabled={!file || !selectedBank || !selectedFileType}
             >
               <FileText className="mr-2 h-4 w-4" /> Categorize Transactions
@@ -210,12 +211,13 @@ export default function BankStatementCategorizer() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {transactions.map((transaction) => (
+              {categorizedTransactions.map((transaction) => (
                 <TableRow key={transaction.id}>
                   <TableCell>{transaction.date}</TableCell>
                   <TableCell>{transaction.description}</TableCell>
                   <TableCell>{transaction.amount.toFixed(2)}</TableCell>
                   <TableCell>
+                    {/** TODO: Change to text input and update category */}
                     <Select
                       value={transaction.category}
                       onValueChange={(value) => handleCategoryChange(transaction.id, value)}

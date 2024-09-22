@@ -5,7 +5,7 @@ export const categorizeTransactions = async(transactions: Transaction[]): Promis
   return await axiosInstance()
     .post("/categorize", transactions)
     .then((res) => {
-      return res.data.data; 
+      return res.data; 
     })
     .catch((error) => {
       console.error(error);

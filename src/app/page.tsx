@@ -74,17 +74,18 @@ export default function BankStatementCategorizer() {
 
   const handleBankChange = (bank: string) => {
     setSelectedBank(bank)
+    setFile(null);
   }
 
   const handleFileTypeChange = (fileType: string) => {
     setSelectedFileType(fileType)
+    setFile(null);
   }
 
   const handleCategorizeTransactions = async() => {
     console.log(transactions);
     const categorizedTransactions = await categorizeTransactions(transactions);
-    console.log(categorizedTransactions);
-    setCategorizedTransactions(transactions);
+    setCategorizedTransactions(categorizedTransactions);
     alert("Transactions categorized!")
   }
 
@@ -218,21 +219,11 @@ export default function BankStatementCategorizer() {
                   <TableCell>{transaction.amount.toFixed(2)}</TableCell>
                   <TableCell>
                     {/** TODO: Change to text input and update category */}
-                    <Select
+                    <Input
+                      type="text"
                       value={transaction.category}
-                      onValueChange={(value) => handleCategoryChange(transaction.id, value)}
-                    >
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      onChange={(e) => handleCategoryChange(transaction.id, e.target.value)}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

@@ -4,15 +4,16 @@ import { useState } from "react"
 import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Upload, Download, FileText, Moon, Sun } from "lucide-react"
+import { Upload, Download, FileText } from "lucide-react"
 import Papa from "papaparse";
 import { v4 as uuidv4 } from 'uuid';
 
-import { defaultTransactions, Transaction } from "@/models/transaction"
+import { Transaction } from "@/models/transaction"
 import { categorizeTransactions } from "@/services/transactions"
+import TransactionTable from "@/components/TransactionTable"
+import ToggleTheme from "@/components/shared/ToggleTheme"
 
 const categories = ["Groceries", "Transportation", "Dining", "Shopping", "Income", "Utilities", "Entertainment", "Rent", "Other"]
 
@@ -27,8 +28,6 @@ export default function BankStatementCategorizer() {
   const [selectedFileType, setSelectedFileType] = useState<string | null>(null);
   const [transactions, setTransactions] = useState([] as Transaction[]);
   const [categorizedTransactions, setCategorizedTransactions] = useState([] as Transaction[]);
-  const { theme, setTheme } = useTheme();
-
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
@@ -48,13 +47,14 @@ export default function BankStatementCategorizer() {
         header: true, // Skip header row in CSV
         skipEmptyLines: true, // Skips last empty row
         complete: function(results){
-          // Expenses should only be from chequing account
+          // Expenses should only be from credit account
           const creditRows = (results.data as any[]).filter((row:any) => {
-            if(row['Account Type'] != 'Chequing') {
+            if(row['Account Type'] == "Chequing" || row['Account Type'] == 'Savings'){
               return false;
             }
             return true;
           });
+          console.log(creditRows);
 
           const creditTransactions = creditRows.map((row:any) => {
             return {
@@ -115,10 +115,6 @@ export default function BankStatementCategorizer() {
     }
   }
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark")
-  }
-
   return (
     <div className="container mx-auto px-4 py-8 bg-background text-foreground">
       <header className="flex justify-center items-center mb-8">
@@ -128,9 +124,7 @@ export default function BankStatementCategorizer() {
             Upload your bank statement, and we'll categorize your transactions using AI.
           </p>
         </div>
-        <Button variant="outline" size="icon" onClick={toggleTheme} className="absolute top-6 right-6">
-          {theme === "dark" ? <Sun className="h-[1.2rem] w-[1.2rem]" /> : <Moon className="h-[1.2rem] w-[1.2rem]" />}
-        </Button>
+        <ToggleTheme />
       </header>
 
       <div className="grid md:grid-cols-2 gap-8 mb-8">
@@ -199,38 +193,10 @@ export default function BankStatementCategorizer() {
         </Card>
       </div>
 
-      <div className="mt-8">
-        <h2 className="text-2xl font-semibold mb-4">Categorized Transactions</h2>
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead>Amount</TableHead>
-                <TableHead>Category</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categorizedTransactions.map((transaction) => (
-                <TableRow key={transaction.id}>
-                  <TableCell>{transaction.date}</TableCell>
-                  <TableCell>{transaction.description}</TableCell>
-                  <TableCell>{transaction.amount.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {/** TODO: Change to text input and update category */}
-                    <Input
-                      type="text"
-                      value={transaction.category}
-                      onChange={(e) => handleCategoryChange(transaction.id, e.target.value)}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
+      <TransactionTable 
+        categorizedTransactions={categorizedTransactions}
+        handleCategoryChange={handleCategoryChange}
+      />
 
       <div className="mt-8 flex justify-center">
         <Button onClick={handleExport} className="w-full max-w-md">

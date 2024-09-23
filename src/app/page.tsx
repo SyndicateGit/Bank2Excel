@@ -12,8 +12,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { Transaction } from "@/models/transaction"
 import { categorizeTransactions } from "@/services/transactions"
-import TransactionTable from "@/components/TransactionTable"
+import TransactionTable from "@/components/Home/TransactionTable"
 import ToggleTheme from "@/components/shared/ToggleTheme"
+import SelectBankOptions from "@/components/Home/SelectBankOptions"
 
 const categories = ["Groceries", "Transportation", "Dining", "Shopping", "Income", "Utilities", "Entertainment", "Rent", "Other"]
 
@@ -128,40 +129,12 @@ export default function BankStatementCategorizer() {
       </header>
 
       <div className="grid md:grid-cols-2 gap-8 mb-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Select Your Bank</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col gap-6">
-              <Select onValueChange={handleBankChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Choose your bank" />
-                </SelectTrigger>
-                <SelectContent>
-                  {banks.map((bank) => (
-                    <SelectItem key={bank} value={bank}>
-                      {bank}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Select onValueChange={handleFileTypeChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select supported file type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {fileTypes.map((filetype) => (
-                    <SelectItem key={filetype} value={filetype}>
-                      {filetype}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardContent>
-        </Card>
-
+        <SelectBankOptions 
+          banks={banks}
+          fileTypes={fileTypes}
+          handleBankChange={handleBankChange}
+          handleFileTypeChange={handleFileTypeChange}
+        />
         <Card>
           <CardHeader>
             <CardTitle>Upload Bank Statement</CardTitle>

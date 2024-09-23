@@ -1,7 +1,7 @@
 'use client'
 import React from 'react'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from './ui/table'
-import { Input } from './ui/input'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
+import { Input } from '../ui/input'
 import { Transaction } from '@/models/transaction'
 
 interface TransactionTableProps{

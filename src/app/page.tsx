@@ -1,12 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { useTheme } from "next-themes"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Upload, Download, FileText } from "lucide-react"
+import { Upload, Download, FileText, Trash } from "lucide-react"
 import Papa from "papaparse";
 import { v4 as uuidv4 } from 'uuid';
 
@@ -15,6 +13,7 @@ import { categorizeTransactions } from "@/services/transactions"
 import TransactionTable from "@/components/Home/TransactionTable"
 import ToggleTheme from "@/components/shared/ToggleTheme"
 import SelectBankOptions from "@/components/Home/SelectBankOptions"
+import React from "react"
 
 const categories = ["Groceries", "Transportation", "Dining", "Shopping", "Income", "Utilities", "Entertainment", "Rent", "Other"]
 
@@ -29,15 +28,19 @@ export default function BankStatementCategorizer() {
   const [selectedFileType, setSelectedFileType] = useState<string | null>(null);
   const [transactions, setTransactions] = useState([] as Transaction[]);
   const [categorizedTransactions, setCategorizedTransactions] = useState([] as Transaction[]);
-
+  const [fetching, setFetching] = useState(false);
+  const fileInputref = React.createRef<HTMLInputElement>();
+  
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = event.target.files?.[0];
     if(!uploadedFile){
+      handleClearFile();
       alert("Error uploading file.");
       return
     }
     // Check file type matches selected file type
     if(uploadedFile.type !== selectedFileType) {
+      handleClearFile();
       alert("Invalid file type")
       return
     }
@@ -55,7 +58,6 @@ export default function BankStatementCategorizer() {
             }
             return true;
           });
-          console.log(creditRows);
 
           const creditTransactions = creditRows.map((row:any) => {
             return {
@@ -75,19 +77,19 @@ export default function BankStatementCategorizer() {
 
   const handleBankChange = (bank: string) => {
     setSelectedBank(bank)
-    setFile(null);
+    handleClearFile();
   }
 
   const handleFileTypeChange = (fileType: string) => {
     setSelectedFileType(fileType)
-    setFile(null);
+    handleClearFile();
   }
 
   const handleCategorizeTransactions = async() => {
-    console.log(transactions);
+    setFetching(true);
     const categorizedTransactions = await categorizeTransactions(transactions);
     setCategorizedTransactions(categorizedTransactions);
-    alert("Transactions categorized!")
+    setFetching(false);
   }
 
   const handleCategoryChange = (transactionId: string, newCategory: string) => {
@@ -116,6 +118,13 @@ export default function BankStatementCategorizer() {
     }
   }
 
+  const handleClearFile = () => {
+    setFile(null);
+    if(fileInputref.current){
+      fileInputref.current.value = "";
+    }
+  }
+
   return (
     <div className="container mx-auto px-4 py-8 bg-background text-foreground">
       <header className="flex justify-center items-center mb-8">
@@ -135,6 +144,7 @@ export default function BankStatementCategorizer() {
           handleBankChange={handleBankChange}
           handleFileTypeChange={handleFileTypeChange}
         />
+
         <Card>
           <CardHeader>
             <CardTitle>Upload Bank Statement</CardTitle>
@@ -145,22 +155,27 @@ export default function BankStatementCategorizer() {
               <p className="text-sm mb-4 text-center">
                 Drag and drop your bank statement file here, or click to select
               </p>
-              <Input
-                type="file"
-                accept=".pdf,.csv,.xlsx"
-                onChange={handleFileUpload}
-                className="max-w-xs"
-                disabled={!selectedBank || !selectedFileType}
-              />
+              <div className="flex gap-6 self-stretch justify-center items-center">
+                <Input
+                  ref={fileInputref}
+                  type="file"
+                  accept=".pdf,.csv,.xlsx"
+                  onChange={handleFileUpload}
+                  className="max-w-xs"
+                  disabled={!selectedBank || !selectedFileType}
+                />
+                <Trash className="w-6 h-6 cursor-pointer" onClick={handleClearFile} />
+              </div>
+              
               {(!selectedBank || !selectedFileType) && <p className="mt-2 text-sm text-red-600">*Please select bank and file type</p>}
               {file && <p className="mt-2 text-sm">{file.name} uploaded</p>}
             </div>
             <Button 
               className="w-full mt-4" 
               onClick={handleCategorizeTransactions}
-              disabled={!file || !selectedBank || !selectedFileType}
+              disabled={!file || !selectedBank || !selectedFileType || fetching}
             >
-              <FileText className="mr-2 h-4 w-4" /> Categorize Transactions
+              <FileText className="mr-2 h-4 w-4" />{fetching? "...loading" : "Categorize Transactions"}
             </Button>
           </CardContent>
         </Card>
